@@ -16,6 +16,7 @@ struct myStruct {
 };
 
 void *mythread(void *arg) {
+    sleep(10);
     struct myStruct *data = (struct myStruct *)arg;
 
     printf("mythread [tid: %d]: number = %d, message = %s\n", gettid(), data->number, data->message);
@@ -63,7 +64,7 @@ int main() {
         return 1; 
     }
 
-    err = pthread_create(&tid, &attr, mythread, &data);
+    err = pthread_create(&tid, &attr, mythread, data);
     if (err) {
         printf("main: pthread_create() failed: %s\n", strerror(err));
         return ERROR;
@@ -73,6 +74,8 @@ int main() {
     if (err){
         printf("main: pthread_attr_destroy() failed: %s\n", strerror(err));
     }
+
+    sleep(5);
 
     pthread_exit(NULL);
 
