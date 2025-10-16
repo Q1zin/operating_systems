@@ -16,7 +16,7 @@ struct myStruct {
 };
 
 void *mythread(void *arg) {
-    sleep(5);
+    sleep(10);
     struct myStruct *data = (struct myStruct *)arg;
     printf("mythread [tid: %d]: number = %d, message = %s\n", gettid(), data->number, data->message);
     return NULL;
@@ -57,7 +57,7 @@ int main() {
         printf("main: pthread_attr_destroy() failed: %s\n", strerror(err));
     }
 
-    sleep(10);
+    sleep(5);
 
-    return SUCCESS;
+    pthread_exit(NULL);
 }
