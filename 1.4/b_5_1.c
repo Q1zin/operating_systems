@@ -25,9 +25,16 @@ void* worker(void* arg) {
         
         pthread_mutex_lock(&mtx);
         printf("worker: waiting...\n");
-        pthread_cond_timedwait(&cond, &mtx, &time_now);
+        int res = pthread_cond_timedwait(&cond, &mtx, &time_now);
         
-        printf("worker: signaled...\n");
+        if (res == 0) {
+            printf("worker: signaled...\n");
+        } else if (res == ETIMEDOUT) {
+            printf("worker: timeout...\n");
+        } else {
+            printf("worker: error...\n");
+        }
+
         counter++;
         pthread_mutex_unlock(&mtx);
     }
