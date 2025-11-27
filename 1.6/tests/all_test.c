@@ -52,6 +52,7 @@ void test2_multiple_threads() {
 void* cancelable_thread(void* arg, mythread_t thread) {
     for (int i = 0; i < 10; i++) {
         mythread_testcancel(thread);
+        printf("mythread_testcancel %d\n", i);
         usleep(10000);
     }
     return (void*)999;
