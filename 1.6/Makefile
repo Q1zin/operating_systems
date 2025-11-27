@@ -6,8 +6,8 @@ LIB     = libmythread.so
 SRCS    = mythread.c
 OBJS    = $(SRCS:.c=.o)
 
-TEST_SRCS = $(wildcard tests/1.2/*.c)
-TESTS     = $(patsubst tests/1.2/%.c, 1_2_%, $(TEST_SRCS))
+TEST_SRCS = $(wildcard tests/*.c)
+TESTS     = $(patsubst tests/%.c, %, $(TEST_SRCS))
 
 .PHONY: all clean tests
 
@@ -22,7 +22,7 @@ $(LIB): $(OBJS)
 %: %.c $(LIB) mythread.h
 	$(CC) $(CFLAGS) $< -L. -lmythread -Wl,-rpath,. $(LDFLAGS) -o $@
 
-1_2_%: tests/1.2/%.c $(LIB) mythread.h
+%: tests/%.c $(LIB) mythread.h
 	$(CC) $(CFLAGS) $< -L. -lmythread -Wl,-rpath,. $(LDFLAGS) -o $@
 
 clean:

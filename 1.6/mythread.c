@@ -50,10 +50,10 @@ static int thread_wrapper(void* arg) {
     while (!atomic_load(&thread->joined) && !atomic_load(&thread->detached)) {
         usleep(1000);
     }
-    
-    if (atomic_load(&thread->detached)) {
-        free_stack(thread->stack, STACK_SIZE);
-    }
+
+    // if (atomic_load(&thread->detached)) {
+    //     free_stack(thread->stack, STACK_SIZE);
+    // }
     
     atomic_store(&thread->finished, 2);
     futex_wake((int*)&thread->finished, 1);
@@ -89,7 +89,8 @@ int mythread_create(mythread_t* tid, start_routine_t routine, void* arg) {
     
     int flags = CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND | CLONE_THREAD | CLONE_CHILD_CLEARTID;
     thread->mythread_id = clone(thread_wrapper, stack_top, flags, thread, NULL, NULL, (int*)&thread->clear_tid);
-    
+    atomic_store(&thread->clear_tid, thread->mythread_id);
+
     if (thread->mythread_id == -1) {
         perror("clone failed");
         free_stack(stack, STACK_SIZE);
@@ -150,6 +151,7 @@ int mythread_join(mythread_t tid, void** retval) {
 
     int clear_val;
     while ((clear_val = atomic_load(&tid->clear_tid)) != 0) {
+        printf("wait clear_val\n");
         futex_wait((int*)&tid->clear_tid, clear_val);
     }
 
@@ -163,12 +165,12 @@ int mythread_detach(mythread_t tid) {
         errno = EINVAL;
         return -1;
     }
-    
+
     if (atomic_load(&tid->joined)) {
         errno = EINVAL;
         return -1;
     }
-    
+
     atomic_store(&tid->detached, 1);
     return 0;
 }

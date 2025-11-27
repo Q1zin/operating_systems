@@ -1,6 +1,6 @@
 #define _GNU_SOURCE
 #include <stdio.h>
-#include "./../../mythread.h"
+#include "./../mythread.h"
 #include <string.h>
 #include <errno.h>
 #include <sys/types.h>
