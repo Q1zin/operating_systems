@@ -13,6 +13,7 @@
 #include <sys/syscall.h>
 #include <setjmp.h>
 #include <stdatomic.h>
+#include <linux/futex.h>
 
 #define PAGE 4096
 #define STACK_SIZE (PAGE * 8)
