@@ -32,6 +32,7 @@ struct  _mythread {
     _Atomic int joined;
     _Atomic int canceled;
     _Atomic int detached;
+    _Atomic int clear_tid;
     jmp_buf exit;
 };
 

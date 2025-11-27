@@ -15,13 +15,13 @@ static void* create_stack(size_t size) {
         perror("mmap failed");
         return NULL;
     }
-
+    
     if (mprotect(stack, PAGE, PROT_NONE) == -1) {
         perror("mprotect failed");
         munmap(stack, size);
         return NULL;
     }
-
+    
     return stack;
 }
 
@@ -29,11 +29,11 @@ static void free_stack(void* stack, size_t size) {
     if (stack) {
         munmap(stack, size);
     }
-} 
+}
 
 static int thread_wrapper(void* arg) {
     mythread_t thread = (mythread_t)arg;
-
+    
     if (!atomic_load(&thread->canceled)) {
         if (setjmp(thread->exit) == 0) {
             thread->retval = thread->start_routine(thread->arg, thread);
@@ -43,21 +43,21 @@ static int thread_wrapper(void* arg) {
     } else {
         thread->retval = ((void*)-1);
     }
-
+    
     atomic_store(&thread->finished, 1);
     futex_wake((int*)&thread->finished, 1);
-
+    
     while (!atomic_load(&thread->joined) && !atomic_load(&thread->detached)) {
         usleep(1000);
     }
-
+    
     if (atomic_load(&thread->detached)) {
         free_stack(thread->stack, STACK_SIZE);
     }
-
+    
     atomic_store(&thread->finished, 2);
     futex_wake((int*)&thread->finished, 1);
-
+    
     return 0;
 }
 
@@ -66,14 +66,14 @@ int mythread_create(mythread_t* tid, start_routine_t routine, void* arg) {
         errno = EINVAL;
         return -1;
     }
-
+    
     void* stack = create_stack(STACK_SIZE);
     if (!stack) {
         return -1;
     }
-
+    
     mythread_t thread = (mythread_t)(stack + STACK_SIZE - sizeof(mythread_struct_t));
-
+    
     thread->start_routine = routine;
     thread->arg = arg;
     thread->retval = NULL;
@@ -82,19 +82,20 @@ int mythread_create(mythread_t* tid, start_routine_t routine, void* arg) {
     atomic_store(&thread->joined, 0);
     atomic_store(&thread->canceled, 0);
     atomic_store(&thread->detached, 0);
-
+    atomic_store(&thread->clear_tid, 0);
+    
     void* stack_top = (void*)thread;
     stack_top = (void*)((uintptr_t)stack_top & ~15UL);
-
-    int flags = CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND | CLONE_THREAD;
-    thread->mythread_id = clone(thread_wrapper, stack_top, flags, thread);
-
+    
+    int flags = CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND | CLONE_THREAD | CLONE_CHILD_CLEARTID;
+    thread->mythread_id = clone(thread_wrapper, stack_top, flags, thread, NULL, NULL, (int*)&thread->clear_tid);
+    
     if (thread->mythread_id == -1) {
         perror("clone failed");
         free_stack(stack, STACK_SIZE);
         return -1;
     }
-
+    
     *tid = thread;
     return 0;
 }
@@ -122,33 +123,38 @@ int mythread_join(mythread_t tid, void** retval) {
         errno = EINVAL;
         return -1;
     }
-
+    
     int expected = 0;
     if (!atomic_compare_exchange_strong(&tid->joined, &expected, 1)) {
         errno = EINVAL;
         return -1;
     }
-
+    
     if (atomic_load(&tid->detached)) {
         errno = EINVAL;
         return -1;
     }
-
+    
     int state;
     while ((state = atomic_load(&tid->finished)) < 1) {
         futex_wait((int*)&tid->finished, 0);
     }
-
+    
     if (retval) {
         *retval = tid->retval;
     }
-
+    
     while ((state = atomic_load(&tid->finished)) < 2) {
         futex_wait((int*)&tid->finished, 1);
     }
 
-    free_stack(tid->stack, STACK_SIZE);
+    int clear_val;
+    while ((clear_val = atomic_load(&tid->clear_tid)) != 0) {
+        futex_wait((int*)&tid->clear_tid, clear_val);
+    }
 
+    free_stack(tid->stack, STACK_SIZE);
+    
     return 0;
 }
 
@@ -157,12 +163,12 @@ int mythread_detach(mythread_t tid) {
         errno = EINVAL;
         return -1;
     }
-
+    
     if (atomic_load(&tid->joined)) {
         errno = EINVAL;
         return -1;
     }
-
+    
     atomic_store(&tid->detached, 1);
     return 0;
 }
